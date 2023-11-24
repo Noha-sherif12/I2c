@@ -1,0 +1,173 @@
+module FSM(SDA, SCL, RST, bit_count, address_match, ACK, MACK, RX, TX, address_enable, ACK_enable, bit_count_enable, TX_valid, TX_RX_enable, RX_valid, ENABLE,  address_valid); 
+inout SDA;
+input SCL, RST, bit_count, address_match, ACK, MACK, RX, TX;
+output reg address_enable, ACK_enable, bit_count_enable, ENABLE, TX_valid, TX_RX_enable, RX_valid,  address_valid;
+
+
+reg [2:0] current_state, next_state;
+
+//I2C state machine states
+parameter IDLE = 3'b000;
+parameter START_STATE = 3'b001;
+parameter ADDR_MATCH = 3'b010;
+parameter ACK_STATE = 3'b011;
+parameter DATA_TX = 3'b100;
+parameter DATA_RX = 3'b101;
+
+//state transiton 
+always @(posedge SCL)
+ begin
+  if(!RST)
+    current_state <= IDLE ;
+  else
+    current_state <= next_state ;
+   end
+
+ //next state logic
+ always @(posedge SCL)
+ begin 
+ 	case(current_state)
+ 		IDLE : begin 
+ 			if(!SDA && SCL)
+ 				next_state = START_STATE;
+ 			else 
+ 				next_state = IDLE;
+ 		end 
+ 		START_STATE : begin
+ 			if(address_match)
+ 				next_state = ADDR_MATCH;
+ 			else 
+ 				next_state = START_STATE;
+ 		end 
+ 		ADDR_MATCH : begin 
+ 			if(TX)
+ 				next_state = ACK_STATE;
+ 			else if(RX)
+ 				next_state = ACK_STATE;
+ 			else 
+ 				next_state = ADDR_MATCH;
+ 		end 
+ 		ACK_STATE : begin 
+ 			if(TX)
+ 				next_state = DATA_TX;
+ 			else if (RX) 
+ 				next_state = DATA_RX;
+ 			else 
+ 				next_state = IDLE;
+ 			
+ 		end 
+ 		DATA_TX : begin
+ 			if(MACK)
+ 				next_state = DATA_TX;
+ 			else if(!MACK)
+ 				next_state = IDLE;
+ 		end
+ 		DATA_RX : begin 
+ 			if(bit_count)
+ 				next_state = ACK_STATE;
+ 			else 
+ 				next_state = IDLE;
+ 				end 
+
+ 		
+ 		default: begin
+			 next_state = IDLE ; 
+           end	
+  endcase                 	   
+ end 
+
+//output logic
+always @(current_state)
+begin 
+         
+	case(current_state)
+		IDLE : begin
+		  address_enable = 1'b0;
+		   address_valid = 1'b0;
+		   SDA = 1'b0;
+      ACK_enable = 1'b0;
+      bit_count_enable = 1'b0;
+      TX_valid = 1'b0;
+      TX_RX_enable = 1'b0;
+      RX_valid = 1'b0;
+      ENABLE =  1'b0;
+    end 
+      
+	START_STATE : begin 
+		  address_enable = 1'b1;
+		  address_valid = 1'b1;
+		  SDA = 1'b0;
+          ACK_enable = 1'b0;
+          bit_count_enable = 1'b0;
+          TX_valid = 1'b0;
+          TX_RX_enable = 1'b0;
+          RX_valid = 1'b0;
+            ENABLE =  1'b0;
+
+        end 
+		
+		
+	ADDR_MATCH : begin 
+		  address_enable = 1'b0;
+		  address_valid = 1'b0;
+		  SDA = 1'b0;
+          ACK_enable = 1'b0;
+          bit_count_enable = 1'b0;
+          TX_valid = 1'b0;
+          TX_RX_enable = 1'b1;
+          RX_valid = 1'b0;		
+            ENABLE =  1'b0;
+      end 
+	ACK_STATE : begin 
+	if(RX)
+	begin
+		  address_enable = 1'b0;
+		  address_valid = 1'b0;
+		  SDA = 1'b0;
+          ACK_enable = 1'b1;
+          bit_count_enable = 1'b1;
+          TX_valid = 1'b0;
+          TX_RX_enable = 1'b0;
+          RX_valid = 1'b0;
+            ENABLE =  1'b0;
+		end
+		else if(TX) 
+		  begin
+		  address_enable = 1'b0;
+		  address_valid = 1'b0;
+		  SDA = 1'b0;
+          ACK_enable = 1'b1;
+          bit_count_enable = 1'b0;
+          TX_valid = 1'b1;
+          TX_RX_enable = 1'b0;
+          RX_valid = 1'b0;
+            ENABLE =  1'b0;
+	end 
+	end 
+	DATA_TX : begin 
+		  address_enable = 1'b0;
+		  address_valid = 1'b0;
+		  SDA = 1'b0;
+          ACK_enable = 1'b0;
+          bit_count_enable = 1'b0;
+          TX_valid = 1'b1;
+          TX_RX_enable = 1'b0;
+          RX_valid = 1'b0;
+            ENABLE =  1'b1;
+        end 
+      
+    DATA_RX :  begin
+    	  address_enable = 1'b0;
+    	  address_valid = 1'b0;
+    	  SDA = 1'b0;
+          ACK_enable = 1'b1;
+          bit_count_enable = 1'b0;
+          TX_valid = 1'b0;
+          TX_RX_enable = 1'b0;
+          RX_valid = 1'b1;
+            ENABLE =  1'b0;
+     end 
+	endcase
+end
+
+endmodule
